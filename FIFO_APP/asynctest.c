@@ -8,7 +8,6 @@
 #include <signal.h>
 #include <fcntl.h>
 int option=0;
-int gotsignal=0;
 int datacnt=0;
 int end = 0;
 int broj;
@@ -19,16 +18,6 @@ int gotdata;
 int endRead=0;
 int broj=0;
 
-
-void sighandler(int signo)
-{
-    if (signo==SIGIO)
-    {
-	gotsignal=1;
-	datacnt++;
-    }
-    return;
-}
 
 char buffer[4096];
 char buffer1[4096];
