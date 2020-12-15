@@ -28,7 +28,7 @@ DECLARE_WAIT_QUEUE_HEAD(writeQueue);
 struct semaphore sem;
 
 int x=0;
-unsigned int fifo[16];
+int fifo[16];
 int pos;
 int num=0;
 int endRead=0;
@@ -82,7 +82,8 @@ ssize_t fifo_read(struct file *pfile, char __user *buffer, size_t length, loff_t
   }
 
 
-  if (num==0) {
+  if(num==0)
+  {
     num=1;
   }
 
@@ -103,7 +104,7 @@ ssize_t fifo_read(struct file *pfile, char __user *buffer, size_t length, loff_t
       
       len = snprintf(buff1+strlen(buff1), 80, "%#04x ", fifo[0]);                              
         
-        for(i=0;i<15;i++)                                                             //fifo[] pomeramo u desno u fifo maniru i upisujemo vrednosti
+        for(i=0;i<15;i++)                                                             //fifo[] pomeramo u desno u fifo kada je neka vrednost procitana
         {                                                                                
           fifo[i]=fifo[i+1];
         }
@@ -115,60 +116,20 @@ ssize_t fifo_read(struct file *pfile, char __user *buffer, size_t length, loff_t
     if (ret)
       return -EFAULT;
     
+    printk("There are %d files in FIFO!",tmp);
     printk(KERN_INFO "Read from fifo!\n");
+  
+    wake_up_interruptible(&writeQueue);
   }
 
   else
   {
     printk(KERN_WARNING "There are %d elements in FIFO, the value of n must be n<=%d\n",tmp,tmp);
   }
-    
-    //up(&sem);                                                                                              
-    wake_up_interruptible(&writeQueue);                                                                    
-    
+ 
     return len*num;
   
   }
-
-/*
-  else{
-
-    if(endRead)
-    {
-      endRead = 0;
-      return 0;
-    }
-
-    if(tmp > 0)
-    {
-      len = scnprintf(buff, BUFF_SIZE, "%#04x \n", fifo[0]);                            //korisnik potrazuje samo prvi upisan podatak
-      ret = copy_to_user(buffer, buff, len);
-
-      if(ret)
-        return -EFAULT;
-      
-      printk(KERN_INFO "Succesfully read\n");
-      endRead = 1;
-    }
-
-    
-    else
-    {
-        printk(KERN_WARNING "Fifo is empty\n"); 
-    }
-    
-    tmp=tmp-1;
-    num=1;
-
-    wake_up_interruptible(&writeQueue);   
-    return len;
-  }
-
-*/
-
-//}
-
- 
 
 
 ssize_t fifo_write(struct file *pfile, const char *buffer, size_t length, loff_t *offset)  
@@ -185,6 +146,8 @@ ssize_t fifo_write(struct file *pfile, const char *buffer, size_t length, loff_t
   
   buff[length-1]='\0';
 
+  char* const delim= ";";
+  char *token, *cur=buff;
 
   if(!strncmp(buff,"num=",4))                                                       //provera da li korisnik unosi nove vrednosti ili potrazuje num=n komandu
   {
@@ -198,31 +161,31 @@ ssize_t fifo_write(struct file *pfile, const char *buffer, size_t length, loff_t
 
       if(ptr==NULL)                                                                 //strchr ne pronalazi ; sto znaci da je poslata jedna vrednost i upisuje je u fifo
       {
-        ret=kstrtouint(buff,0, &fifo[0]); 
-        tmp=1;
-        printk(KERN_INFO "Succesfully written value %#04x in  FIFO", fifo[0]);
+        ret=kstrtouint(buff,0, &fifo[tmp]); 
+      
+        if(fifo[i] > 255)                                                        //proveravamo da uneta vrednost ne premasuje dozvoljen opseg(0xFF)
+          {
+            printk(KERN_WARNING "Input can't be greater than 0xff");         
+            return length;
+          }
+
       }
       
-      else
-      {
-        
-        char* const delim= ";";
-        char *token, *cur=buff;
-        int token1;
         i=tmp;
 
         while(token =strsep(&cur, delim))                                          //strsep funkcijom izdvajamo vrednosti odvojene delimiterom ;
         {
 
-          ret=kstrtouint(token, 0, &fifo[i]);                                      //konvertujemo izdvojen token u unsigned int i smestamo na i-tu poziciju fifo bafera 
+          ret=kstrtoint(token, 0, &fifo[i]);                                      //konvertujemo izdvojen token u unsigned int i smestamo na i-tu poziciju fifo bafera 
           i++; 
           
-          //if(fifo[i] > 255)                                                        //proveravamo da uneta vrednost ne premasuje dozvoljen opseg(0xFF)
-          //{
-            //printk(KERN_WARNING "Input can not be greater than 0xff");         
-            //return length;
-          //}
+          if(fifo[i] > 255)                                                        //proveravamo da uneta vrednost ne premasuje dozvoljen opseg(0xFF)
+          {
+            printk(KERN_WARNING "Input can't be greater than 0xff");         
+            return length;
+          }
 
+          tmp=i;
           
          while(i > 15)
         {
@@ -230,29 +193,21 @@ ssize_t fifo_write(struct file *pfile, const char *buffer, size_t length, loff_t
           
           if(wait_event_interruptible(writeQueue,(tmp<16)))                          //Fifo je pun
               return -ERESTARTSYS;
-
-          /*for(j=0; j<tmp+num; j++)
-            {
-              
-              fifo[j]=fifo[j+num];
-            } 
-
-         */// i=i-num;
         }
       
-      } 
-        tmp=i;
-      
+      }
+
       for(j=0; j<tmp; j++)
         {
           printk("Value %#04x written in FIFO", fifo[j]);
+          
         }        
 
-        
-
-    }
+      printk("There are %d files in FIFO!",tmp);                                  //koliko vrednosti trenutno ima u baferu
+    
                         
   }
+
   wake_up_interruptible(&readQueue);                                                                           
   return length;
 }
@@ -319,4 +274,3 @@ static void __exit fifo_exit(void)
 
 module_init(fifo_init);
 module_exit(fifo_exit);
-

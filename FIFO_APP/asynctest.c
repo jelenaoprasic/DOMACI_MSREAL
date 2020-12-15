@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     switch(option)
     {
         case 1: {
-            printf("Upisati brojeve u hex formatu, upis se zavrsava dodavanjem Q\n");
+            printf("Upisati brojeve u hex formatu, upis se zavrsava dodavanjem Q i pritiskom enter\n");
             scanf("%s",buffer);
                
             if((strncmp(buffer, "0x", 2) != 0) && (strncmp(buffer, "Q", 2) != 0))
