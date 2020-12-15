@@ -105,7 +105,7 @@ int main(int argc, char **argv)
        }
 
         default:
-        printf("Uneta vrednost mora biri 1-3\n");
+        printf("Uneta vrednost mora biti od 1-3\n");
     }
 
 }
